@@ -10,8 +10,6 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 
-from pages.single_phase_three_phase import _calculate_daily_charge_residential
-
 # --- 1. TARIFF CONFIGURATION ---
 TARIFF_CONFIG_R = {
     "tiers": [
@@ -180,7 +178,6 @@ def _calculate_daily_charge_HV(row:dict[str,float]):
     energy_charge+= (daily_kwh* tier['rate'])
 
     return round(energy_charge, 4)
-
 
 
 # --- 3. PDF GENERATION ENGINE ---
