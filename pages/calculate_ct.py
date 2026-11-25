@@ -199,7 +199,7 @@ def _generate_pdf(dataframe:pd.DataFrame,ct_r:str,pt_r:str):
     tr_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontSize=12, textColor=colors.HexColor("#10274F"))
         
     # Document Header
-    story.append(Paragraph("⚡ Smart-Mart Billing & Tariff Report", title_style))
+    story.append(Paragraph("⚡ Smart-Meter Billing & Tariff Report", title_style))
     story.append(Paragraph(f"Generated Rows: {len(dataframe)} rows processed.", meta_style))
     story.append(Paragraph(f"CT Ratio: {ctr} --|||-- PT Ratio: {ptr}",tr_style))
     story.append(Spacer(1, 15))
