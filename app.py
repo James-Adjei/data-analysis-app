@@ -1,23 +1,10 @@
-from flask import Flask, render_template,request,flash
+import streamlit as st
 
-app=Flask(__name__)
-app.secret_key="ideine15445"
-
-@app.route("/",methods=["GET"])
-def index()->str:
-    flash("What's Your Name?")
-    return render_template("index.html")
-
-
-
-@app.route("/greet",methods=["POST","GET"])
-def greet()->str:
-    minput= str( request.form["name_input"])
-    flash("Hi "+minput+", Good to see you!")
-
-    return render_template("index.html")
-# if __name__=="__app__":
-#     app.run(debug=True)
-
-
-
+page = st.navigation(
+    [
+        st.Page("pages/single_phase_three_phase.py", title="Calculate for 1 Phase, 3 Phase", icon="1️⃣"),
+        st.Page("pages/calculate_ct.py", title="Calculate for CT", icon="3️⃣"),
+        st.Page("pages/about.py", title="About", icon="ℹ️"),
+    ]
+)
+page.run()
