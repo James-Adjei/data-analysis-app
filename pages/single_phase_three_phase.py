@@ -116,7 +116,7 @@ def generate_pdf(dataframe):
     meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor("#4A5568"))
     
     # Document Header
-    story.append(Paragraph("⚡ Electricity Billing & Tariff Report", title_style))
+    story.append(Paragraph("⚡ Smart-Mart Billing & Tariff Report", title_style))
     story.append(Paragraph(f"Generated Rows: {len(dataframe)} rows processed.", meta_style))
     story.append(Spacer(1, 15))
     header_style=styles["Normal"].clone("TableHeader")
