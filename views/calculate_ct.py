@@ -1,14 +1,21 @@
+from typing import IO, Literal
+
 import streamlit as st
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
 
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.ticker as mticker
+
 # Import PDF layout libraries
-from reportlab.lib.pagesizes import A4, letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import mm
+import numbered_canvas as nc
 
 # --- 1. TARIFF CONFIGURATION ---
 TARIFF_CONFIG_R = {
@@ -180,6 +187,7 @@ def _calculate_daily_charge_HV(row:dict[str,float]):
     return round(energy_charge, 4)
 
 
+
 # --- 3. PDF GENERATION ENGINE ---
 def _generate_pdf(dataframe:pd.DataFrame,ct_r:str,pt_r:str):
     buffer = BytesIO()
@@ -194,7 +202,7 @@ def _generate_pdf(dataframe:pd.DataFrame,ct_r:str,pt_r:str):
     title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=20, spaceAfter=15, textColor=colors.HexColor("#1A365D"))
     meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor("#4A5568"))
     tr_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontSize=12, textColor=colors.HexColor("#10274F"))
-        
+    section_style=ParagraphStyle("SectionStyle",parent=styles["Heading2"],fontSize=14,spaceBefore=40,spaceAfter=5,textColor=colors.HexColor("#2d3748"))  
     # Document Header
     story.append(Paragraph("⚡ Smart-Meter Billing & Tariff Report", title_style))
     story.append(Paragraph(f"Generated Rows: {len(dataframe)} rows processed.", meta_style))
@@ -204,13 +212,13 @@ def _generate_pdf(dataframe:pd.DataFrame,ct_r:str,pt_r:str):
     header_style.fontName="Helvetica-Bold"
     header_style.fontSize=8.5
     header_style.leading=10
-    header_style.aligment=1
+    header_style.alignment=1
     header_style.textColor=colors.white
     body_style=styles["Normal"].clone("TableBody")
     body_style.fontName="Helvetica-Bold"
     body_style.fontSize=8
     body_style.leading=10
-    body_style.aligment=1
+    body_style.alignment=1
     body_style.textColor=colors.black
         
    
@@ -227,13 +235,12 @@ def _generate_pdf(dataframe:pd.DataFrame,ct_r:str,pt_r:str):
             Paragraph(str(row.name),body_style),
            Paragraph( str(row["Meter Asset No."]),body_style),
             Paragraph(row["Data Time"].strftime('%Y-%m-%d'),body_style),
-            Paragraph(f"{row['kWh Consumed (Cumulative Current Month)']:.4f}",body_style),
-          Paragraph ( f"{row['kWh Consumed (Daily)']:.4f}",body_style),
-           Paragraph (f"{row['kWh Charge (GHS)']:.4f}",body_style)
+            Paragraph(f"{row['kWh Consumed (Cumulative Current Month)']:,.2f}",body_style),
+          Paragraph ( f"{row['kWh Consumed (Daily)']:,.2f}",body_style),
+           Paragraph (f"{row['kWh Charge (GHS)']:,.2f}",body_style)
         ])
         
-    # Set clear explicit widths for standard 8.5" x 11" letter size page
-    letter_width=[130, 110, 150, 120]
+  
     # Set clear explicit widths for standard 8.27" x 11.89" A4 size page
     A4_width=[36,86,82,152,86,94]
     tariff_table = Table(table_data, colWidths=A4_width,repeatRows=1)
@@ -253,7 +260,57 @@ def _generate_pdf(dataframe:pd.DataFrame,ct_r:str,pt_r:str):
     ]))
     
     story.append(tariff_table)
-    doc.build(story)
+
+
+    story.append(Paragraph("📈 Consumption Trend",section_style))
+    
+    plt.figure(figsize=(7.2,3.2))
+    
+    plt.plot(
+        dataframe["Data Time"],
+        dataframe['kWh Consumed (Daily)'],
+        color="#3182ce",
+        linewidth=2,
+        marker="o",
+        markersize=4,
+        label="Daily Usage"
+    )
+
+    plt.title("Daily Consumption (kWh) trend",fontdict={
+        "fontsize":10,
+        "fontweight":'bold',
+        "color":"#2d3748"
+    },pad=10
+   )
+    plt.xlabel("Consumption Date",fontdict={
+        "fontsize":8,
+        "color":"#4a5568"
+    })
+    plt.ylabel("kWh consumed (daily)",fontdict={
+        "fontsize":8,
+        "color":"#4a5568"
+    })
+    plt.gca().yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:,.0f}"))
+    plt.gca().yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
+    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))
+    plt.gcf().autofmt_xdate()
+
+    plt.grid(True,linestyle='--',which='major',alpha=0.5,color="#75a9ee")
+    plt.tick_params(axis="both",which="major",labelsize=8,colors="#4a5568")
+
+    for spine in ['top','right']:
+        plt.gca().spines[spine].set_visible(False)
+   
+    plt.tight_layout()
+    chart_buffer=BytesIO()
+    plt.savefig(chart_buffer,format="png",dpi=200)
+    chart_buffer.seek(0)
+
+    reportlab_chart= Image(chart_buffer,width=520,height=230)
+    story.append(reportlab_chart)
+
+    doc.build(story, canvasmaker=nc.NumberedCanvas)
     buffer.seek(0)
     return buffer
 
@@ -345,7 +402,7 @@ if uploaded_file is not None:
                             st.download_button(
                             label="📥 Download Generated PDF Report",
                             data=pdf_data_stream,
-                            file_name=f"Tariff_Computation_Report_{string_date}.pdf",
+                            file_name=f"{df_filtered["Meter Asset No."].iloc[0]}_Report_{string_date}.pdf",
                             mime="application/pdf",
                             type="primary"
                             )
